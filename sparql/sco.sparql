@@ -1,0 +1,11 @@
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+select
+?sub ?super
+where
+{
+    ?sub rdfs:subClassOf+ ?super
+    filter(isuri(?super))
+    filter(isuri(?sub))
+}
+#limit 3
+
