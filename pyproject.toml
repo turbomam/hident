@@ -6,6 +6,9 @@ authors = ["Mark A. Miller <mamillerpa@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
+click = "^8.0.3"
+click-log = "^0.3.2"
+prefixcommons = "^0.1.9"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
@@ -13,3 +16,6 @@ pytest = "^5.2"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+hident = 'hident.hident:hident'
