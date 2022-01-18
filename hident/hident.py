@@ -11,12 +11,6 @@ logger = logging.getLogger(__name__)
 click_log.basic_config(logger)
 
 
-# # for recursion
-# completed_ids = []
-# completed_indenteds = []
-# indent_level = 0
-
-
 class Term:
     def __init__(self, term_id):
         self.term_id = term_id
@@ -55,6 +49,9 @@ class Indentables:
         self.lablist = []
         self.roots = []
         self.leaves = []
+        self.requesteds = []
+        self.sco_frame = None
+        self.label_frame = None
 
     def determine_roots(self):
         for k, v in self.termdict.items():
@@ -65,7 +62,7 @@ class Indentables:
     def determine_leaves(self):
         for k, v in self.termdict.items():
             temp = v.dump()
-            if len(temp['subs']) == 0:
+            if len(temp['subs']) == 0 and len(temp['supers']) > 0:
                 self.leaves.append(k)
 
     def get_roots(self) -> list[str]:
@@ -113,69 +110,104 @@ class Indentables:
         temp.apply_supers(supers)
         self.termdict[term_id] = temp
 
+    def requesteds_from_txt_file(self, textfile_name: str, colnum=0, header=None):
+        # assuming they're curies
+        requesteds_frame = pd.read_csv(textfile_name, header=header)
+        requesteds = set(requesteds_frame[colnum])
+        logger.debug(requesteds)
+        self.requesteds = list(requesteds)
+
+    def prepare_frame(self, frame_file_name: str, cols_to_tidy: list[str], header=1, sep="\t") -> pd.DataFrame:
+        # assuming they're full IRIs (but without < or >
+        logger.debug(frame_file_name)
+        frame = pd.read_csv(frame_file_name, header=header, sep=sep)
+        logger.debug(frame)
+        tidy = tidy_sparql_colnames(frame)
+        logger.debug(tidy)
+        for i in cols_to_tidy:
+            logger.debug(i)
+            tidy[i] = contract_iri_col(tidy[i])
+        logger.debug(tidy)
+        return tidy
+
+    def sco_from_txt_file(self, sco_file_name, header=0):
+        sco_frame = self.prepare_frame(sco_file_name, ['sub', 'super'], header=header)
+        self.sco_frame = sco_frame
+
+    def labs_from_txt_file(self, labs_file_name, header=0):
+        sco_frame = self.prepare_frame(labs_file_name, ['class'], header=header)
+        self.label_frame = sco_frame
+
+    def load_term(self, term_id):
+        self.add(term_id)
+        # assuming single label?
+        label_frame = self.label_frame
+        current_label = label_frame.loc[label_frame['class'].eq(term_id), 'label']
+        current_label = current_label.squeeze()
+        self.apply_label(term_id, current_label)
+        sco_frame = self.sco_frame
+        current_subs = list(
+            sco_frame.loc[sco_frame['super'].eq(term_id) & sco_frame['sub'].isin(self.requesteds), 'sub'])
+        current_supers = list(
+            sco_frame.loc[sco_frame['sub'].eq(term_id) & sco_frame['super'].isin(self.requesteds), 'super'])
+        self.apply_subs(term_id, current_subs)
+        self.apply_supers(term_id, current_supers)
+
+    def load_all_terms(self):
+        for i in self.requesteds:
+            self.load_term(i)
+
+    def indent_from_term(self, term_id: str, indent_level: int):
+        padding = "  " * indent_level
+        if term_id in self.leaves:
+            return
+        else:
+            term_dict = self.dump_term(term_id)
+            term_lab = term_dict['term_lab']
+            indented_lab = padding + term_lab
+            self.append_id_lab(term_id, indented_lab)
+            subs = term_dict['subs']
+            for i in subs:
+                new_indent_level = indent_level + 1
+                self.indent_from_term(i, new_indent_level)
+
+    def wrapper(self):
+        self.load_all_terms()
+        # dumped = self.dump()
+        # pprint.pprint(dumped)
+        self.determine_roots()
+        roots = self.get_roots()
+        for i in roots:
+            self.indent_from_term(i, 0)
+
 
 @click.command()
 @click_log.simple_verbosity_option(logger)
-@click.option('--curie_list', type=click.Path(exists=True), required=True, help="headerless list of term ids")
-@click.option('--sco_table', type=click.Path(exists=True), required=True,
+@click.option('--curie_file_name', type=click.Path(exists=True), required=True, help="headerless list of term ids")
+@click.option('--sco_tab_file_name', type=click.Path(exists=True), required=True,
               help="subclass table with IRIs, from sparql/sco.sparql")
-@click.option('--lab_table', type=click.Path(exists=True), required=True,
+@click.option('--lab_tab_file_name', type=click.Path(exists=True), required=True,
               help="label table with IRIs, from sparql/labels.sparql")
 @click.option('--indented_tsv', type=click.Path(), required=True,
               help="output TSV file")
-def hident(curie_list, sco_table, lab_table, indented_tsv):
+def hident(curie_file_name, sco_tab_file_name, lab_tab_file_name, indented_tsv):
     """
     Starting with a list of CURIEs and a dataframe of subclass/superclass relations (full IRIs),
     generate a list of labels with indentation to indicate hierarchy.
-    :param curie_list:
-    :param sco_table:
-    :param lab_table:
+    :param curie_file_name:
+    :param sco_tab_file_name:
+    :param lab_tab_file_name:
     :param indented_tsv:
     :return:
     """
     current_indentables = Indentables()
-    cl_data = pd.read_csv(curie_list, header=None)
-    cl_data = set(cl_data[0])
-    st_data = pd.read_csv(sco_table, sep="\t")
-    st_data = tidy_sparql_colnames(st_data)
-    st_data['sub'] = contract_iri_col(st_data['sub'])
-    st_data['super'] = contract_iri_col(st_data['super'])
-    lab_data = pd.read_csv(lab_table, sep="\t")
-    lab_data = tidy_sparql_colnames(lab_data)
-    lab_data['class'] = contract_iri_col(lab_data['class'])
-    for i in cl_data:
-        current_indentables.add(i)
-        # assuming single label?
-        current_label = lab_data.loc[lab_data['class'].eq(i), 'label']
-        current_label = current_label.squeeze()
-        current_indentables.apply_label(i, current_label)
-        current_subs = list(st_data.loc[st_data['super'].eq(i) & st_data['sub'].isin(cl_data), 'sub'])
-        current_supers = list(st_data.loc[st_data['sub'].eq(i) & st_data['super'].isin(cl_data), 'super'])
-        current_indentables.apply_subs(i, current_subs)
-        current_indentables.apply_supers(i, current_supers)
-    # dumped = current_indentables.dump()
-    current_indentables.determine_roots()
-    roots = current_indentables.get_roots()
-    for i in roots:
-        indent_from_term(i, current_indentables, 0)
+    current_indentables.requesteds_from_txt_file(curie_file_name)
+    current_indentables.sco_from_txt_file(sco_tab_file_name)
+    current_indentables.labs_from_txt_file(lab_tab_file_name)
+    current_indentables.wrapper()
     id_lab_frame = current_indentables.get_ids_labs()
-    # left_aligned_ilf = id_lab_frame.style.set_properties(**{'text-align': 'left'})
+    # # left_aligned_ilf = id_lab_frame.style.set_properties(**{'text-align': 'left'})
     id_lab_frame.to_csv(indented_tsv, sep="\t", index=False)
-
-
-def indent_from_term(term_id: str, indentable: Indentables, indent_level: int):
-    padding = "  " * indent_level
-    if term_id in indentable.leaves:
-        return
-    else:
-        term_dict = indentable.dump_term(term_id)
-        term_lab = term_dict['term_lab']
-        indented_lab = padding + term_lab
-        indentable.append_id_lab(term_id, indented_lab)
-        subs = term_dict['subs']
-        for i in subs:
-            new_indent_level = indent_level + 1
-            indent_from_term(i, indentable, new_indent_level)
 
 
 def tidy_sparql_colnames(sparql_res_frame: pd.DataFrame) -> pd.DataFrame:

@@ -1,10 +1,10 @@
-.PHONY: all clean tests dep_check
+.PHONY: all clean tests dep_check micro_clean
 
 all: clean dep_check tests target/soils_indented.tsv
 
 clean:
-	rm -rf downloads/*
-	rm -rf target/*
+	rm -rf downloads/*.owl
+	rm -rf target/*.tsv
 
 tests:
 	poetry run pytest
@@ -23,9 +23,12 @@ target/envo_sco.tsv: downloads/envo.owl
 target/envo_labs.tsv: downloads/envo.owl
 	robot query --input $< --query sparql/labels.sparql $@
 
+micro_clean:
+	rm -rf target/soils_indented.tsv
+
 target/soils_indented.tsv: target/envo_sco.tsv target/envo_labs.tsv
 	poetry run hident \
-		--curie_list tests/data/termlist.txt \
-		--sco_table target/envo_sco.tsv \
-		--lab_table target/envo_labs.tsv \
+		--curie_file_name tests/data/termlist.txt \
+		--sco_tab_file_name target/envo_sco.tsv \
+		--lab_tab_file_name target/envo_labs.tsv \
 		--indented_tsv $@ > $@
