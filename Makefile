@@ -1,6 +1,6 @@
 .PHONY: all clean tests dep_check
 
-all: clean dep_check tests target/envo_sco.tsv target/envo_labs.tsv tests/data/envo_sco.tsv target/hident_conf.txt
+all: clean dep_check tests target/soils_indented.tsv
 
 clean:
 	rm -rf downloads/*
@@ -23,8 +23,9 @@ target/envo_sco.tsv: downloads/envo.owl
 target/envo_labs.tsv: downloads/envo.owl
 	robot query --input $< --query sparql/labels.sparql $@
 
-target/hident_conf.txt: target/envo_sco.tsv target/envo_labs.tsv
+target/soils_indented.tsv: target/envo_sco.tsv target/envo_labs.tsv
 	poetry run hident \
 		--curie_list tests/data/termlist.txt \
 		--sco_table target/envo_sco.tsv \
-		--lab_table target/envo_labs.tsv > $@
+		--lab_table target/envo_labs.tsv \
+		--indented_tsv $@ > $@

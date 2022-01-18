@@ -2,7 +2,7 @@ import logging
 import click
 import click_log
 import pandas as pd
-import pprint
+# import pprint
 import prefixcommons as pc
 
 # need tests on sco and label frames
@@ -34,6 +34,9 @@ class Term:
     def apply_supers(self, supers):
         self.supers = supers
 
+    # def get_attrib(self, attrib):
+    #     return self[attrib]
+
     def dump(self):
         dumped = {
             "term_id": self.term_id,
@@ -50,24 +53,49 @@ class Indentables:
         self.termdict = {}
         self.idlist = []
         self.lablist = []
+        self.roots = []
+        self.leaves = []
 
-    # def append_id(self, termid):
-    #     self.idlist.append(termid)
-    #
-    # def append_lab(self, lablist):
-    #     self.lablist.append(lablist)
+    def determine_roots(self):
+        for k, v in self.termdict.items():
+            temp = v.dump()
+            if len(temp['supers']) == 0:
+                self.roots.append(k)
+
+    def determine_leaves(self):
+        for k, v in self.termdict.items():
+            temp = v.dump()
+            if len(temp['subs']) == 0:
+                self.leaves.append(k)
+
+    def get_roots(self) -> list[str]:
+        return self.roots
+
+    def get_leaves(self) -> list[str]:
+        return self.leaves
 
     def append_id_lab(self, termid, termlab):
         self.idlist.append(termid)
         self.lablist.append(termlab)
 
+    def get_ids_labs(self) -> pd.DataFrame:
+        ids = self.idlist
+        labs = self.lablist
+        id_lab_frame = pd.concat([pd.Series(ids, name='id'), pd.Series(labs, name='indented_lab')], axis=1)
+        return id_lab_frame
+
     def add(self, term_id):
         self.termdict[term_id] = Term(term_id)
 
-    def dump(self):
+    def dump(self) -> dict:
         dumped = {}
         for k, v in self.termdict.items():
             dumped[k] = v.dump()
+        return dumped
+
+    def dump_term(self, term_id) -> dict:
+        dumpsource = self.termdict[term_id]
+        dumped = dumpsource.dump()
         return dumped
 
     def apply_label(self, term_id, term_lab):
@@ -93,13 +121,16 @@ class Indentables:
               help="subclass table with IRIs, from sparql/sco.sparql")
 @click.option('--lab_table', type=click.Path(exists=True), required=True,
               help="label table with IRIs, from sparql/labels.sparql")
-def hident(curie_list, sco_table, lab_table):
+@click.option('--indented_tsv', type=click.Path(), required=True,
+              help="output TSV file")
+def hident(curie_list, sco_table, lab_table, indented_tsv):
     """
     Starting with a list of CURIEs and a dataframe of subclass/superclass relations (full IRIs),
     generate a list of labels with indentation to indicate hierarchy.
     :param curie_list:
     :param sco_table:
     :param lab_table:
+    :param indented_tsv:
     :return:
     """
     current_indentables = Indentables()
@@ -122,23 +153,29 @@ def hident(curie_list, sco_table, lab_table):
         current_supers = list(st_data.loc[st_data['sub'].eq(i) & st_data['super'].isin(cl_data), 'super'])
         current_indentables.apply_subs(i, current_subs)
         current_indentables.apply_supers(i, current_supers)
-    dumped = current_indentables.dump()
-    pprint.pprint(dumped)
-    # initial_dict = build_initial_dict(cl_data, st_data, lab_data)
-    # label_id_dict = {}
-    # for k, v in initial_dict.items():
-    #     label_id_dict[v['label']] = k
-    # label_sorted = dict(sorted(label_id_dict.items(), key=lambda x: x[0].lower()))
-    # global completed_ids
-    # completed_ids = []
-    # global completed_indenteds
-    # completed_indenteds = []
-    # global indent_level
-    # indent_level = 0
-    # indent_labels(initial_dict, label_sorted, supers_of_requested)
+    # dumped = current_indentables.dump()
+    current_indentables.determine_roots()
+    roots = current_indentables.get_roots()
+    for i in roots:
+        indent_from_term(i, current_indentables, 0)
+    id_lab_frame = current_indentables.get_ids_labs()
+    # left_aligned_ilf = id_lab_frame.style.set_properties(**{'text-align': 'left'})
+    id_lab_frame.to_csv(indented_tsv, sep="\t", index=False)
 
-def indent_from_term(term: Term):
-    pass
+
+def indent_from_term(term_id: str, indentable: Indentables, indent_level: int):
+    padding = "  " * indent_level
+    if term_id in indentable.leaves:
+        return
+    else:
+        term_dict = indentable.dump_term(term_id)
+        term_lab = term_dict['term_lab']
+        indented_lab = padding + term_lab
+        indentable.append_id_lab(term_id, indented_lab)
+        subs = term_dict['subs']
+        for i in subs:
+            new_indent_level = indent_level + 1
+            indent_from_term(i, indentable, new_indent_level)
 
 
 def tidy_sparql_colnames(sparql_res_frame: pd.DataFrame) -> pd.DataFrame:
@@ -154,58 +191,10 @@ def contract_iri_col(iri_col: pd.Series) -> pd.Series:
     return pd.Series(curie_list)
 
 
-# def indent_labels(initial_dict: dict, label_sorted: dict, supers_of_requested: dict):
-#     # global completed_ids
-#     global completed_indenteds
-#     global indent_level
-#     # haven't applied recursion yet
-#     for k, v in label_sorted.items():
-#         if v not in supers_of_requested:
-#             completed_indenteds.append(k)
-#             subs = initial_dict[v]['subs']
-#             if len(subs) > 0:
-#                 for i in subs:
-#                     sub_lab = initial_dict[i]['label']
-#                     completed_indenteds.append("    " + sub_lab)
-#     pprint.pprint(completed_indenteds)
-
-
-# def set_to_sorted_list(term_set: set[str]) -> list[str]:
-#     listified = list(term_set)
-#     listified.sort()
-#     return listified
-
-
-# def build_initial_dict(curie_set: set, contracted_frame: pd.DataFrame, label_frame: pd.DataFrame) -> dict:
-#     by_super = {}
-#     curie_list = list(curie_set)
-#     for i in curie_list:
-#         current_label = label_frame.loc[label_frame['class'].eq(i), 'label']
-#         current_label = current_label.squeeze()
-#         subs = contracted_frame.loc[contracted_frame['super'].eq(i) & contracted_frame['sub'].isin(curie_list), 'sub']
-#         subs = list(set(list(subs)))
-#         by_super[i] = {"label": current_label, "subs": subs}
-#     return by_super
-
-
-# def trim_known_leaves(initial_dict: dict) -> dict:
-#     trimmed_dict = initial_dict.copy()
-#     for k, v in initial_dict.items():
-#         for i in v:
-#             if i in initial_dict:
-#                 i_list = initial_dict[i]
-#                 if len(i_list) == 0:
-#                     del trimmed_dict[i]
-#     return trimmed_dict
-
-
-# def iri_frame_to_curie_frame(iri_frame: pd.DataFrame) -> pd.DataFrame:
-#     iri_dict = iri_frame.to_dict(orient="records")
-#     contracted = []
-#     for i in iri_dict:
-#         contracted.append({"sub": pc.contract_uri(i["sub"])[0], "super": pc.contract_uri(i["super"])[0]})
-#     contracted = pd.DataFrame(contracted)
-#     return contracted
+def set_to_sorted_list(term_set: set[str]) -> list[str]:
+    listified = list(term_set)
+    listified.sort()
+    return listified
 
 
 if __name__ == "__main__":
