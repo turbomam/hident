@@ -176,8 +176,8 @@ class Indentables:
         # dumped = self.dump()
         # pprint.pprint(dumped)
         self.determine_roots()
-        roots = self.get_roots()
-        for i in roots:
+        # roots = self.get_roots()
+        for i in self.roots:
             self.indent_from_term(i, 0)
 
 
