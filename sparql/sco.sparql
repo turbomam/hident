@@ -1,12 +1,12 @@
 prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 prefix ENVO: <http://purl.obolibrary.org/obo/ENVO_>
 select
-?sub ?super
+(str(?suburi) as ?sub) (str(?superuri) as ?super)
 where
 {
-    ?sub rdfs:subClassOf ?super
-    filter(isuri(?super))
-    filter(isuri(?sub))
+    ?suburi rdfs:subClassOf ?superuri
+    filter(isuri(?superuri))
+    filter(isuri(?suburi))
 }
 #limit 3
 # also try a sco+ query?

@@ -1,0 +1,13 @@
+prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+prefix owl:  <http://www.w3.org/2002/07/owl#>
+# require english or un-languaged?
+select
+(str(?classuri) as ?class) (str(?labelstr) as ?label)
+where
+{
+    ?classuri rdfs:label ?labelstr ;
+    rdf:type owl:Class .
+    filter(isuri(?classuri))
+}
+
