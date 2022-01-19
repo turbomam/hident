@@ -117,6 +117,14 @@ class Indentables:
         logger.debug(requesteds)
         self.requesteds = list(requesteds)
 
+    def alphabetize_requesteds(self):
+        lf = self.label_frame
+        rts = self.requesteds
+        lf = lf.loc[lf['class'].isin(rts)]
+        lf = lf.sort_values(by='label')
+        self.requesteds = list(lf['class'])
+        logger.info(lf)
+
     def prepare_frame(self, frame_file_name: str, cols_to_tidy: list[str], header=1, sep="\t") -> pd.DataFrame:
         # assuming they're full IRIs (but without < or >
         logger.debug(frame_file_name)
@@ -204,6 +212,7 @@ def hident(curie_file_name, sco_tab_file_name, lab_tab_file_name, indented_tsv):
     current_indentables.requesteds_from_txt_file(curie_file_name)
     current_indentables.sco_from_txt_file(sco_tab_file_name)
     current_indentables.labs_from_txt_file(lab_tab_file_name)
+    current_indentables.alphabetize_requesteds()
     current_indentables.wrapper()
     id_lab_frame = current_indentables.get_ids_labs()
     # # left_aligned_ilf = id_lab_frame.style.set_properties(**{'text-align': 'left'})
