@@ -177,7 +177,7 @@ class Indentables:
         else:
             term_dict = self.dump_term(term_id)
             term_lab = term_dict['term_lab']
-            indented_lab = padding + term_lab
+            indented_lab = padding + term_lab + " [" + term_id + "]"
             self.append_id_lab(term_id, indented_lab)
             subs = term_dict['subs']
             subs = self.alphabetize_terms(subs)
