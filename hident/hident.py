@@ -117,13 +117,18 @@ class Indentables:
         logger.debug(requesteds)
         self.requesteds = list(requesteds)
 
-    def alphabetize_requesteds(self):
+    def alphabetize_terms(self, term_list) -> list:
         lf = self.label_frame
-        rts = self.requesteds
-        lf = lf.loc[lf['class'].isin(rts)]
+        lf = lf.loc[lf['class'].isin(term_list)]
         lf = lf.sort_values(by='label')
-        self.requesteds = list(lf['class'])
-        logger.info(lf)
+        alphabetized = list(lf['class'])
+        # logger.info(lf)
+        return alphabetized
+
+    def alphabetize_requesteds(self):
+        term_list = self.requesteds
+        alphabetized = self.alphabetize_terms(term_list)
+        self.requesteds = alphabetized
 
     def prepare_frame(self, frame_file_name: str, cols_to_tidy: list[str], header=1, sep="\t") -> pd.DataFrame:
         # assuming they're full IRIs (but without < or >
@@ -175,6 +180,7 @@ class Indentables:
             indented_lab = padding + term_lab
             self.append_id_lab(term_id, indented_lab)
             subs = term_dict['subs']
+            subs = self.alphabetize_terms(subs)
             for i in subs:
                 new_indent_level = indent_level + 1
                 self.indent_from_term(i, new_indent_level)
