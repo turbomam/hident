@@ -33,4 +33,5 @@ target/soils_indented.tsv: target/envo_sco.tsv target/envo_labs.tsv
 		--lab_tab_file_name target/envo_labs.tsv \
 		--pad_char _ \
 		--pad_count 2 \
+		--parent_term 'broad-scale environmental context' \
 		--indented_tsv $@ > $@

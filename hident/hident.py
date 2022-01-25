@@ -81,6 +81,7 @@ class Indentables:
         ids = self.idlist
         labs = self.lablist
         id_lab_frame = pd.concat([pd.Series(ids, name='id'), pd.Series(labs, name='indented_lab')], axis=1)
+        id_lab_frame.columns = ['Ontology ID', 'label']
         return id_lab_frame
 
     def add(self, term_id):
@@ -209,9 +210,11 @@ class Indentables:
               help="What padding character will be used for left-hand indentation?")
 @click.option('--pad_count', default=2, show_default=True,
               help="How man pad_chars per indent level?")
+@click.option('--parent_term', show_default=True,
+              help="assert a parent term/section, i.e. for DataHarmonizer")
 @click.option('--indented_tsv', type=click.Path(), required=True,
               help="output TSV file")
-def hident(curie_file_name, sco_tab_file_name, lab_tab_file_name, indented_tsv, pad_char, pad_count):
+def hident(curie_file_name, sco_tab_file_name, lab_tab_file_name, indented_tsv, pad_char, pad_count, parent_term):
     """
     Starting with a list of CURIEs and a dataframe of subclass/superclass relations (full IRIs),
     generate a list of labels with indentation to indicate hierarchy.
@@ -231,6 +234,8 @@ def hident(curie_file_name, sco_tab_file_name, lab_tab_file_name, indented_tsv, 
     current_indentables.wrapper()
     id_lab_frame = current_indentables.get_ids_labs()
     # # left_aligned_ilf = id_lab_frame.style.set_properties(**{'text-align': 'left'})
+    if parent_term != '' and parent_term is not None:
+        id_lab_frame['parent class'] = parent_term
     id_lab_frame.to_csv(indented_tsv, sep="\t", index=False)
 
 
