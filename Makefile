@@ -31,4 +31,6 @@ target/soils_indented.tsv: target/envo_sco.tsv target/envo_labs.tsv
 		--curie_file_name tests/data/soil_ebs_curated_termlist.txt \
 		--sco_tab_file_name target/envo_sco.tsv \
 		--lab_tab_file_name target/envo_labs.tsv \
+		--pad_char _ \
+		--pad_count 2 \
 		--indented_tsv $@ > $@

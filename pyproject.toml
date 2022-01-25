@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "hident"
-version = "0.1.3"
+version = "0.1.5"
 description = ""
 authors = ["Mark A. Miller <mamillerpa@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-click = "^8.0.3"
+click = "^7.1.2"
 click-log = "^0.3.2"
 prefixcommons = "^0.1.9"
 pandas = "^1.3.5"

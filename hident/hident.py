@@ -43,7 +43,7 @@ class Term:
 
 # assert a type for the term dict?
 class Indentables:
-    def __init__(self):
+    def __init__(self, pad_char: str, pad_count: int):
         self.termdict = {}
         self.idlist = []
         self.lablist = []
@@ -52,6 +52,8 @@ class Indentables:
         self.requesteds = []
         self.sco_frame = None
         self.label_frame = None
+        self.pad_char = pad_char
+        self.pad_count = pad_count
 
     def determine_roots(self):
         for k, v in self.termdict.items():
@@ -171,7 +173,8 @@ class Indentables:
             self.load_term(i)
 
     def indent_from_term(self, term_id: str, indent_level: int):
-        padding = "  " * indent_level
+        the_pad = self.pad_char * self.pad_count
+        padding = the_pad * indent_level
         if term_id in self.leaves:
             return
         else:
@@ -202,9 +205,13 @@ class Indentables:
               help="subclass table with IRIs, from sparql/sco.sparql")
 @click.option('--lab_tab_file_name', type=click.Path(exists=True), required=True,
               help="label table with IRIs, from sparql/labels.sparql")
+@click.option('--pad_char', default="_", show_default=True,
+              help="What padding character will be used for left-hand indentation?")
+@click.option('--pad_count', default=2, show_default=True,
+              help="How man pad_chars per indent level?")
 @click.option('--indented_tsv', type=click.Path(), required=True,
               help="output TSV file")
-def hident(curie_file_name, sco_tab_file_name, lab_tab_file_name, indented_tsv):
+def hident(curie_file_name, sco_tab_file_name, lab_tab_file_name, indented_tsv, pad_char, pad_count):
     """
     Starting with a list of CURIEs and a dataframe of subclass/superclass relations (full IRIs),
     generate a list of labels with indentation to indicate hierarchy.
@@ -212,9 +219,11 @@ def hident(curie_file_name, sco_tab_file_name, lab_tab_file_name, indented_tsv):
     :param sco_tab_file_name:
     :param lab_tab_file_name:
     :param indented_tsv:
+    :param pad_char:
+    :param pad_count:
     :return:
     """
-    current_indentables = Indentables()
+    current_indentables = Indentables(pad_char, pad_count)
     current_indentables.requesteds_from_txt_file(curie_file_name)
     current_indentables.sco_from_txt_file(sco_tab_file_name)
     current_indentables.labs_from_txt_file(lab_tab_file_name)
